@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
@@ -17,7 +17,7 @@ async function run() {
         const PawMartDB = client.db("PawMart");
         const bannerCollection = PawMartDB.collection("banner");
         const productsCollection = PawMartDB.collection("products");
-        const suppliesCollection = PawMartDB.collection("supplies");
+        const ordersCollection = PawMartDB.collection("orders");
 
         //banner section
         app.get("/banner", async (req, res) => {
@@ -40,9 +40,8 @@ async function run() {
             res.send(result);
         })
 
-        app.get("/products/:category", async (req, res) => { 
+        app.get("/products/:category", async (req, res) => {
             const category = req.params.category;
-            console.log("category", category);
             const query = {
                 category: category
             }
@@ -52,13 +51,48 @@ async function run() {
             res.send(result);
         })
 
+        app.get("/products/details/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await productsCollection.findOne(query);
+            res.send(result);
+        })
+
         app.post("/products", async (req, res) => {
             const newProducts = req.body;
             const result = await productsCollection.insertOne(newProducts);
             res.send(result);
         })
 
+        //addListing
+        app.get("/addListing", async (req, res) => {
+            const result = await productsCollection.find().toArray();
+            res.send(result);
+        });
 
+        app.post("/addListing", async (req, res) => {
+            const newProduct = req.body;
+            const result = await productsCollection.insertOne(newProduct);
+            res.send(result);
+        })
+
+        //orders
+        app.get("/orders", async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                email: email
+            }
+            const result = await ordersCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.post("/orders", async (req, res) => {
+            const newOrders = req.body;
+            const result = await ordersCollection.insertOne(newOrders);
+            res.send(result);
+        })
 
 
     } catch (err) {

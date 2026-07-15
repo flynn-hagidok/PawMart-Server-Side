@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASSWORD}@cluster0.zgye7fw.mongodb.net/?appName=Cluster0`
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.zgye7fw.mongodb.net/?appName=Cluster0`
 const client = new MongoClient(uri);
 
 const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
@@ -40,7 +40,9 @@ const verifyToken = async (req, res, next) => {
 
 async function run() {
     try {
+        console.log("Run function started");
         await client.connect();
+        console.log("MongoDB Connected");
         const PawMartDB = client.db("PawMart");
         const bannerCollection = PawMartDB.collection("banner");
         const productsCollection = PawMartDB.collection("products");
@@ -130,7 +132,9 @@ async function run() {
         //orders
         app.get("/orders", verifyToken, async (req, res) => {
             const email = req.query.email;
-            const query = {};
+            const query = {
+                email: email
+            };
             if (email !== req.token_email) {
                 return res.status(403).send({ message: "Forbidden access" })
             }
@@ -146,7 +150,8 @@ async function run() {
 
 
     } catch (err) {
-        console.dir(err);
+        console.error("Run error");
+        console.error(err);
     }
 }
 

@@ -12,7 +12,8 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASSWORD}@cluster0.zgye7fw.mongodb.net/?appName=Cluster0`
 const client = new MongoClient(uri);
 
-const serviceAccount = require("./pawmart-firebase-adminsdk.json");
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 })

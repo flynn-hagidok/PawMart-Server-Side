@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const admin = require("firebase-admin");
 const app = express();
 const { MongoClient, ObjectId } = require("mongodb");
 require("dotenv").config();
@@ -10,6 +11,31 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASSWORD}@cluster0.zgye7fw.mongodb.net/?appName=Cluster0`
 const client = new MongoClient(uri);
+
+const serviceAccount = require("./pawmart-firebase-adminsdk.json");
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+})
+
+const verifyToken = async (req, res, next) => {
+    if (!req.headers.authorization) {
+        return res.status(401).send({ message: 'unauthorize access' })
+    }
+
+    const token = req.headers.authorization.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).send({ message: "unathorize access" })
+    }
+
+    try {
+        const userInfo = await admin.auth().verifyIdToken(token)
+        req.token_email = userInfo.email;
+        next();
+    } catch {
+        res.status(401).send({ message: "unvalid token" });
+    }
+}
 
 async function run() {
     try {
@@ -47,8 +73,20 @@ async function run() {
             }
             const cursor = productsCollection.find(query)
             const result = await cursor.toArray();
-            console.log("result", result);
             res.send(result);
+        })
+
+        app.patch("/products/:id", verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const updatedDate = req.body;
+            const query = {
+                _id: new ObjectId(id)
+            };
+            const updateProduct = {
+                $set: updatedDate
+            };
+            const result = await productsCollection.updateOne(query, updateProduct);
+            res.send(result)
         })
 
         app.get("/products/details/:id", async (req, res) => {
@@ -60,35 +98,46 @@ async function run() {
             res.send(result);
         })
 
-        app.post("/products", async (req, res) => {
-            const newProducts = req.body;
-            const result = await productsCollection.insertOne(newProducts);
+        app.delete("/products/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await productsCollection.deleteOne(query);
             res.send(result);
         })
 
         //addListing
-        app.get("/addListing", async (req, res) => {
-            const result = await productsCollection.find().toArray();
+        app.get("/addListing", verifyToken, async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                email: email
+            }
+            if (email !== req.token_email) {
+                return res.status(403).send({ message: "Forbidden access" })
+            }
+            const result = await productsCollection.find(query).toArray();
             res.send(result);
         });
 
-        app.post("/addListing", async (req, res) => {
+        app.post("/addListing", verifyToken, async (req, res) => {
             const newProduct = req.body;
             const result = await productsCollection.insertOne(newProduct);
             res.send(result);
         })
 
         //orders
-        app.get("/orders", async (req, res) => {
+        app.get("/orders", verifyToken, async (req, res) => {
             const email = req.query.email;
-            const query = {
-                email: email
+            const query = {};
+            if (email !== req.token_email) {
+                return res.status(403).send({ message: "Forbidden access" })
             }
             const result = await ordersCollection.find(query).toArray();
             res.send(result);
         })
 
-        app.post("/orders", async (req, res) => {
+        app.post("/orders", verifyToken, async (req, res) => {
             const newOrders = req.body;
             const result = await ordersCollection.insertOne(newOrders);
             res.send(result);
